@@ -7,79 +7,88 @@ import (
 	"log"
 	"os"
 	"reflect"
+	"sort"
 	"strconv"
+	"strings"
 )
 
 func flatten(obj interface{}) map[string]interface{} {
 	f := make(map[string]interface{}, 0)
-	// fmt.Println(obj)
+	keys := make([]string, 0)
 
-	_flatten(f, "", obj)
+	_flatten(f, keys, obj)
 
 	return f
 }
 
-func _flatten(f map[string]interface{}, key string, obj interface{}) {
-	// interface to reflect.Value
-	// value := reflect.ValueOf(obj)
-	value, ok := obj.(reflect.Value)
-	fmt.Println("ORI", value)
-	fmt.Println("ORI", value.Kind())
-	if !ok {
-		value = reflect.ValueOf(obj)
-		fmt.Println("!OK", value)
-	}
-
-	if value.Kind() == reflect.Interface {
-		value = value.Elem()
-		fmt.Println("ELE", value)
-	}
-
-	fmt.Println(key, value, value.Kind())
+func _flatten(f map[string]interface{}, keys []string, obj interface{}) {
+	// get reflect.Value from interface
+	value := getValue(obj)
 
 	switch value.Kind() {
 	case reflect.Map:
-		_flattenMap(f, value)
+		_flattenMap(f, keys, value)
 	case reflect.Slice:
-		_flattenSlice(f, key, value)
+		_flattenSlice(f, keys, value)
 	case reflect.Float64:
+		key := strings.Join(keys, "/")
 		f[key] = value.Float()
 	case reflect.String:
+		key := strings.Join(keys, "/")
 		f[key] = value.String()
+	default:
+		fmt.Println(keys, value, value.Kind())
+		log.Fatal("SWITCH DEFAULT UNKOWN KIND")
 	}
 }
 
-func _flattenMap(f map[string]interface{}, value reflect.Value) {
+func cloneKey(keys []string) []string {
+	if len(keys) == 0 {
+		return keys
+	}
 
-	for _, key := range value.MapKeys() {
-		// fmt.Println(key.String(), value.MapIndex(key))
-		_flatten(f, key.String(), value.MapIndex(key))
+	cloneKey := make([]string, len(keys))
+	copy(cloneKey, keys)
+	return cloneKey
+}
+
+func _flattenMap(f map[string]interface{}, keys []string, value reflect.Value) {
+	// keys := sortedMapKeys(value)
+	mapKeys := value.MapKeys()
+	// sort.Sort(mapKeys)
+	for _, key := range mapKeys {
+		cloneKey := cloneKey(keys)
+		cloneKey = append(cloneKey, key.String())
+		_flatten(f, cloneKey, value.MapIndex(key))
 	}
 }
 
-func _flattenSlice(f map[string]interface{}, key string, value reflect.Value) {
+func _flattenSlice(f map[string]interface{}, keys []string, value reflect.Value) {
 	if value.Len() == 0 {
-		_flatten(f, key, "")
+		_flatten(f, keys, "")
 	}
 	for i := 0; i < value.Len(); i++ {
-		fmt.Println(value.Index(i))
-		_flatten(f, key+"/"+strconv.Itoa(i), value.Index(i))
+		cloneKey := cloneKey(keys)
+		cloneKey = append(cloneKey, strconv.Itoa(i))
+		_flatten(f, cloneKey, value.Index(i))
 	}
 }
 
 func json2csv(data interface{}) []map[string]interface{} {
 	var results []map[string]interface{}
-	v := reflect.ValueOf(data)
-	// fmt.Println(v.Kind())
+
+	v := getValue(data)
 
 	switch v.Kind() {
 	case reflect.Map:
-		// fmt.Println(v.Len())
 		if v.Len() > 0 {
 			results = append(results, flatten(v))
 		}
 	case reflect.Slice:
-		// fmt.Println(v.Len())
+
+		for i := 0; i < v.Len(); i++ {
+			results = append(results, flatten(v))
+		}
 
 		// if v.Len() > 0 {
 		// 	results = append(results, flatten(v))
@@ -92,25 +101,13 @@ func main() {
 	log.SetFlags(log.Llongfile)
 	path := "sample.json"
 	j, _ := os.ReadFile(path)
-	var x map[string]interface{}
+	var x interface{}
 
 	err := json.Unmarshal(j, &x)
-
-	if err != nil {
-		log.Fatal()
-	}
+	_ = err
 
 	results := json2csv(x)
 	writeCSV(results)
-
-	// f, _ := os.Create("result.csv")
-
-	// for _, result := range results {
-	// 	fmt.Println(result)
-	// 	// bytes, _ := json.Marshal(result)
-	// 	// ioutil.WriteFile("result.csv", bytes, os.FileMode(0600))
-	// }
-
 }
 
 func writeCSV(results []map[string]interface{}) {
@@ -122,21 +119,26 @@ func writeCSV(results []map[string]interface{}) {
 	w := csv.NewWriter(f)
 
 	headers := getHeader(results)
+	sort.SliceStable(headers, func(i, j int) bool { return headers[i] < headers[j] })
 	fmt.Println(headers)
-	// for _, result := range results {
-	// 	fmt.Println(result)
-	// }
 
 	if err := w.Write(headers); err != nil {
 		fmt.Println(err)
 	}
 
-	for _, result := range results {
+	for i, result := range results {
 		record := make([]string, 0, len(result))
-		// _ = record
 		for _, key := range headers {
-			record = append(record, fmt.Sprintf("%v", result[key]))
+			if len(results) > 1 {
+				key = strconv.Itoa(i) + "/" + key
+			}
 			// fmt.Println(key)
+			value := result[key]
+			if value == nil {
+				value = ""
+			}
+			record = append(record, fmt.Sprintf("%v", value))
+
 		}
 		if err := w.Write(record); err != nil {
 			fmt.Println(err)
@@ -144,14 +146,4 @@ func writeCSV(results []map[string]interface{}) {
 	}
 
 	w.Flush() // バッファに残っているデータを書き込む
-}
-
-func getHeader(results []map[string]interface{}) []string {
-	headers := make([]string, 0, len(results))
-	for _, result := range results {
-		for k := range result {
-			headers = append(headers, k)
-		}
-	}
-	return headers
 }

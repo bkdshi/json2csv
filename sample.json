@@ -1,4 +1,7 @@
-{
-  "id": 1,
-  "title": "iPhone 9"
-}
+
+    {
+        "id": 1,
+        "title": "iPhone 9",
+        "images": [1,"D"
+        ]
+    }
