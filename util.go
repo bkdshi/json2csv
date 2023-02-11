@@ -1,7 +1,12 @@
-package main
+package json2csv
 
 import (
+	"encoding/csv"
+	"fmt"
+	"os"
 	"reflect"
+	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -72,4 +77,52 @@ func getHeader(results []map[string]interface{}) []string {
 	}
 
 	return new_headers
+}
+
+func cloneKey(keys []string) []string {
+	if len(keys) == 0 {
+		return keys
+	}
+
+	cloneKey := make([]string, len(keys))
+	copy(cloneKey, keys)
+	return cloneKey
+}
+
+func writeCSV(results []map[string]interface{}) {
+	f, err := os.Create("result.csv")
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	w := csv.NewWriter(f)
+
+	headers := getHeader(results)
+	sort.SliceStable(headers, func(i, j int) bool { return headers[i] < headers[j] })
+	fmt.Println(headers)
+
+	if err := w.Write(headers); err != nil {
+		fmt.Println(err)
+	}
+
+	for i, result := range results {
+		record := make([]string, 0, len(result))
+		for _, key := range headers {
+			if len(results) > 1 {
+				key = strconv.Itoa(i) + "/" + key
+			}
+			// fmt.Println(key)
+			value := result[key]
+			if value == nil {
+				value = ""
+			}
+			record = append(record, fmt.Sprintf("%v", value))
+
+		}
+		if err := w.Write(record); err != nil {
+			fmt.Println(err)
+		}
+	}
+
+	w.Flush() // バッファに残っているデータを書き込む
 }
