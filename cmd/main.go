@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+
+	"github.com/bkdshi/json2csv"
 )
 
 func main() {
@@ -15,6 +17,7 @@ func main() {
 	err := json.Unmarshal(j, &x)
 	_ = err
 
-	results := json2csv.json2csv(x)
-	json2csv.writeCSV(results)
+	results := json2csv.Json2Csv(x)
+	f, err := os.Create("result.csv")
+	json2csv.WriteCSV(f, results)
 }

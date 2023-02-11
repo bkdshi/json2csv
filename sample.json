@@ -1,7 +1,18 @@
-
+[
     {
         "id": 1,
         "title": "iPhone 9",
-        "images": [1,"D"
+        "images": [
+            "https://i.dummyjson.com/data/products/1/1.jpg",
+            "https://i.dummyjson.com/data/products/1/2.jpg"
+        ]
+    },
+    {
+        "id": 2,
+        "title": "iPhone 11",
+        "images": [
+            "https://i.dummyjson.com/data/products/2/1.jpg",
+            "https://i.dummyjson.com/data/products/2/2.jpg"
         ]
     }
+]
