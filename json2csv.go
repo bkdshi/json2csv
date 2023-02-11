@@ -65,19 +65,19 @@ func flatten(obj interface{}) map[string]interface{} {
 	f := make(map[string]interface{}, 0)
 	keys := make([]string, 0)
 
-	_flatten(f, keys, obj)
+	flattenRecursive(f, keys, obj)
 	return f
 }
 
 // Flatten structure recursively
-func _flatten(f map[string]interface{}, keys []string, obj interface{}) {
+func flattenRecursive(f map[string]interface{}, keys []string, obj interface{}) {
 	value := getValue(obj)
 
 	switch value.Kind() {
 	case reflect.Map:
-		_flattenMap(f, keys, value)
+		flattenRecursiveMap(f, keys, value)
 	case reflect.Slice:
-		_flattenSlice(f, keys, value)
+		flattenRecursiveSlice(f, keys, value)
 	case reflect.Float64:
 		key := strings.Join(keys, "/")
 		f[key] = value.Float()
@@ -91,23 +91,23 @@ func _flatten(f map[string]interface{}, keys []string, obj interface{}) {
 }
 
 // Flatten map
-func _flattenMap(f map[string]interface{}, keys []string, value reflect.Value) {
+func flattenRecursiveMap(f map[string]interface{}, keys []string, value reflect.Value) {
 	for _, key := range value.MapKeys() {
 		cloneKey := cloneKey(keys)
 		cloneKey = append(cloneKey, key.String())
-		_flatten(f, cloneKey, value.MapIndex(key))
+		flattenRecursive(f, cloneKey, value.MapIndex(key))
 	}
 }
 
 // Flatten Slice
-func _flattenSlice(f map[string]interface{}, keys []string, value reflect.Value) {
+func flattenRecursiveSlice(f map[string]interface{}, keys []string, value reflect.Value) {
 	if value.Len() == 0 {
-		_flatten(f, keys, "")
+		flattenRecursive(f, keys, "")
 	}
 	for i := 0; i < value.Len(); i++ {
 		cloneKey := cloneKey(keys)
 		cloneKey = append(cloneKey, strconv.Itoa(i))
-		_flatten(f, cloneKey, value.Index(i))
+		flattenRecursive(f, cloneKey, value.Index(i))
 	}
 }
 
